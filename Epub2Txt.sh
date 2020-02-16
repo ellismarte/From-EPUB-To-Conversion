@@ -1,11 +1,4 @@
 #!/bin/bash
-#
-# MIT license
-# https://github.com/MiczFlor/From-EPUB-To-Conversion
-#
-# USAGE EXAMPLES:
-# bash ConvertEpubChapter2DOCX.sh -i {epub-file-path} -o {output-zip-file-path} -p {pandoc-executable-path} -t {temp-dit-path}
-# bash ConvertEpubChapter2DOCX.sh --in {epub-file-path} --out {output-zip-file-path} -p {pandoc-executable-path} -t {temp-dit-path}
 
 # read parameters from input
 while [[ $# -gt 1 ]]
@@ -33,13 +26,14 @@ case $key in
 esac
 shift # past argument or value
 done
-
+ROOT_DIR=$(pwd)
 filename=$(basename "$TARGET")
 TARGETEXTENSION="${filename##*.}"
 TARGETFILENAME="${filename%.*}"
 TEMPDIR="${TEMPDIR}"
 PANDOC="${PANDOC:-"pandoc"}"
-DOCXFOLDER=$TEMPDIR"/"$TARGETFILENAME
+TEXTFOLDER=$TEMPDIR"/"$TARGETFILENAME
+CHAPTER_DIR=$TEXTFOLDER"/Chapters"
 
 printf '%s\n'
 echo INITIAL VARIABLES
@@ -60,15 +54,15 @@ fi
 echo '-------'DONE
 printf '%s\n'
 
-echo '-------'CREATE DOCX DIR
-if [ ! -d $DOCXFOLDER"/Chapters" ]; then
-  mkdir -p $DOCXFOLDER"/Chapters";
+echo '-------'CREATE TEXT DIR
+if [ ! -d $TEXTFOLDER"/Chapters" ]; then
+  mkdir -p $TEXTFOLDER"/Chapters";
 fi
 echo '-------'DONE
 printf '%s\n'
 
 echo '-------'RUN PANDOC
-$PANDOC -s --from epub --to docx -o $DOCXFOLDER"/COMPLETE_"$TARGETFILENAME.docx $SOURCE
+$PANDOC -s --from epub --to plain -o $TEXTFOLDER"/COMPLETE_"$TARGETFILENAME.txt $SOURCE
 echo '-------'DONE
 printf '%s\n'
 
@@ -83,32 +77,29 @@ unzip ./source.epub
 echo '-------'DONE
 printf '%s\n'
 
-echo '-------'COPY FONTS, CSS AND IMAGES TO DOCX FOLDER
-cp -R ./OEBPS/Fonts $DOCXFOLDER
-cp -R ./OEBPS/Images $DOCXFOLDER
-cp -R ./OEBPS/Styles $DOCXFOLDER
-echo '-------'DONE
-printf '%s\n'
-
 echo '-------'RUN PANDOC FOR EACH CHAPTER
-cd ./OEBPS/Text/
-for chapterxhtml in *.xhtml; do
-    # chapter name without xhtml ending
-    chaptername=$(echo $chapterxhtml | cut -f 1 -d '.')
-    $PANDOC -s --from html --to docx -o $DOCXFOLDER"/Chapters/"$chaptername.docx $chapterxhtml
+
+ROOT_OF_TEMP=$(pwd)
+CHAPTER_DIR="$ROOT_OF_TEMP/$TARGETFILENAME/Chapters"
+cd "./OEBPS/"
+OEBPS_DIR=$(pwd)
+
+for chapterhtml in *.html; do
+    # chapter name without html ending
+    chaptername=$(echo $chapterhtml | cut -f 1 -d '.')
+    echo $OEBPS_DIR
+    $PANDOC -s -r html "$OEBPS_DIR/$chapterhtml" -o "$CHAPTER_DIR/$chaptername.txt"
 done
 echo '-------'DONE
 printf '%s\n'
 
 echo '-------'CREATE ZIP
-cd $TEMPDIR
-zip -0r $TARGET ./$TARGETFILENAME"/"
+cd $ROOT_DIR
+mv $TEXTFOLDER "./converted"
 echo '-------'DONE
 printf '%s\n'
 
 echo '-------'DELETE TEMP DIR
-cd $TEMPDIR
-cd ../
 rm -rf $TEMPDIR
 echo '-------'DONE
 printf '%s\n'
